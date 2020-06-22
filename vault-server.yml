@@ -1,0 +1,72 @@
+---
+- hosts: localhost
+  name: "Setup the AppRole Example Vault server"
+  tasks:
+    - name: remove old vault
+      file:
+        path: /tmp/vault-example-code
+        state: absent
+
+    - name: fetch the vault example
+      git:
+        repo: https://github.com/lyndsey-ferguson/article-example-securing-signing-assets.git
+        dest: /tmp/vault-example-code
+
+    - pip:
+        name: docker-compose
+
+    - docker_compose:
+        project_src: /tmp/vault-example-code
+        build: yes
+        recreate: always
+      register: example_vault_server_output
+    
+    - set_fact:
+        container: "{{ example_vault_server_output.services.vault.keys() | list | first }}"
+
+    - debug:
+        var: container
+
+    - name: check if vault is initialized
+      command: docker-compose exec -T vault vault status
+      args:
+        chdir: /tmp/vault-example-code
+      # environment:
+      #   COMPOSE_INTERACTIVE_NO_CLI: "1"
+      ignore_errors: True
+      register: vault_init_check_output
+    
+    - debug:
+        var: vault_init_check_output
+        
+    - name: initialize vault
+      command: docker-compose exec -T vault vault init
+      args:
+        chdir: /tmp/vault-example-code
+      register: init_vault_output
+      when: '"* server is not yet initialized" in vault_init_check_output.stderr_lines'
+      
+    - debug:
+        var: init_vault_output
+    
+    - set_fact:
+        unseal_keys: "{{ init_vault_output.stdout_lines[0:5] | map('regex_replace', 'Unseal Key \\d+. (\\S+)', '\\1') | list }}"
+        root_token: "{{ init_vault_output.stdout_lines[6] | regex_replace('Initial Root Token: ', '') }}"
+    
+    - debug:
+        var: unseal_keys
+    
+    - debug:
+        var: root_token
+      
+    - name: unseal vault
+      command: docker-compose exec -T vault vault operator unseal {{ item }}
+      args:
+        chdir: /tmp/vault-example-code
+      loop: "{{ unseal_keys }}"
+
+    - name: enable versioned secrets
+      command: docker-compose exec -T vault vault kv enable-versioning secret
+      args:
+        chdir: /tmp/vault-example-code
+      
