@@ -65,8 +65,46 @@
         chdir: /tmp/vault-example-code
       loop: "{{ unseal_keys }}"
 
+    - name: login as root
+      command: docker-compose exec -T vault vault login -field=token {{ root_token }}
+      args:
+        chdir: /tmp/vault-example-code
+
     - name: enable versioned secrets
       command: docker-compose exec -T vault vault kv enable-versioning secret
       args:
         chdir: /tmp/vault-example-code
-      
+
+    - name: set vault addr env var
+      set_fact:
+        vault_addr: "http://localhost:8200"
+
+    - name: create and secure the encryption keys
+      shell: echo {{ root_token }} | ./create-and-secure-encryption-keys.sh
+      args:
+        chdir: /tmp/vault-example-code
+      environment:
+        VAULT_ADDR: "{{ vault_addr }}"
+
+    - name: create the mobile apps write policy
+      command: >
+        docker-compose exec -T vault
+        vault policy write custom-mobile-apps-write-policy
+        vault/policies/custom-mobile-apps-write-policy.hcl
+      args:
+        chdir: /tmp/vault-example-code
+
+    - name: enable userpass auth backend
+      command: docker-compose exec -T vault vault auth enable userpass 
+      args:
+        chdir: /tmp/vault-example-code
+
+    - name: create a user 
+      command: >
+        docker-compose exec -T vault
+        vault write auth/userpass/users/lyndsey.ferguson
+        password=mypassword
+        policies=custom-mobile-apps-write-policy
+      args:
+        chdir: /tmp/vault-example-code
+    
