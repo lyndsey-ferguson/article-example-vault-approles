@@ -108,3 +108,24 @@
       args:
         chdir: /tmp/vault-example-code
     
+    - name: login as user
+      uri:
+        url: "{{ vault_addr }}/v1/auth/userpass/login/lyndsey.ferguson"
+        method: POST
+        body_format: json
+        body:
+          password: "mypassword"
+      register: login_output
+    
+    - debug:
+        var: login_output.json.auth.client_token
+      
+    - name: secure-keychain
+      command: /tmp/vault-example-code/secure-keychain.sh lyndsey.ferguson.keychain-db apns.key
+      environment:
+        VAULT_TOKEN: "{{ login_output.json.auth.client_token }}" 
+        VAULT_ADDR: "{{ vault_addr }}"
+        KEYCHAIN_PASSWORD: lyndsey
+        COMPANY_NAME: lyndsey
+        PATH: '/usr/local/bin:{{ ansible_env.PATH }}'
+    
