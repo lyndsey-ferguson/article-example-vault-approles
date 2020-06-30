@@ -211,3 +211,5 @@
 
     - debug:
         var: get_role_id_output
+
+    # brew install libsodium
