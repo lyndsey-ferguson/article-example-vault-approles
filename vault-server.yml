@@ -129,3 +129,55 @@
         COMPANY_NAME: lyndsey
         PATH: '/usr/local/bin:{{ ansible_env.PATH }}'
     
+    - name: create read only policy
+      command: >
+        docker-compose exec -T vault
+        vault policy write custom-mobile-apps-read-policy
+        vault/policy/custom-mobile-apps-read-policy.hcl
+      args:
+        chdir: /tmp/vault-example-code
+
+    - name: create token role that uses the read only policy
+      command: >
+        docker-compose exec -T vault
+        vault write auth/token/roles/custom-mobile-apps-read-policy-create-role
+        allowed_policies=custom-mobile-apps-read-policy
+      args:
+        chdir: /tmp/vault-example-code
+
+    - name: create policy that allows the creation of token
+      command: >
+        docker-compose exec -T vault
+        vault policy write custom-mobile-apps-read-policy-create-role
+        vault/policies/custom-mobile-apps-read-policy-create-token-policy.hcl
+      args:
+        chdir: /tmp/vault-example-code
+
+    - name: update the user account to permit the creation of the token
+      command: >
+        docker-compose exec -T vault
+        vault write auth/userpass/users/lyndsey.ferguson
+        policies="custom-mobile-apps-write-policy,custom-mobile-apps-read-policy-create-role"
+      args:
+        chdir: /tmp/vault-example-code
+
+    - name: re-login as user
+      uri:
+        url: "{{ vault_addr }}/v1/auth/userpass/login/lyndsey.ferguson"
+        method: POST
+        body_format: json
+        body:
+          password: "mypassword"
+      register: login_output
+
+    - name: get the read token for the custom-mobile-apps-read-policy
+      uri:
+        url: "{{ vault_addr }}/v1/auth/token/create/custom-mobile-apps-read-policy-create-role"
+        method: POST
+        headers:
+          "X-Vault-Token": "{{ login_output.json.auth.client_token }}" 
+      register: token_creation_output
+
+    - name: output the token
+      debug:
+        var: token_creation_output.json.auth.client_token
