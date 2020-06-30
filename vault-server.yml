@@ -181,3 +181,33 @@
     - name: output the token
       debug:
         var: token_creation_output.json.auth.client_token
+
+    - name: enable approle
+      command: >
+        docker-compose exec -T vault
+        vault auth enable approle
+      args:
+        chdir: /tmp/vault-example-code
+
+    - name: create the custom-mobile-apps-signer role
+      command: >
+        docker-compose exec -T vault
+        vault write auth/approle/role/custom-mobile-apps-signer
+        token_policies="custom-mobile-apps-read-policy"
+        secret_id_ttl=10m
+        token_num_uses=1
+        token_ttl=20m
+        token_max_ttl=30m
+      args:
+        chdir: /tmp/vault-example-code
+        
+    - name: get the role-id for the custom-mobile-apps-signer role
+      command: >
+        docker-compose exec -T vault
+        vault read auth/approle/role/custom-mobile-apps-signer/role-id
+      args:
+        chdir: /tmp/vault-example-code
+      register: get_role_id_output
+
+    - debug:
+        var: get_role_id_output
