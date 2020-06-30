@@ -133,7 +133,7 @@
       command: >
         docker-compose exec -T vault
         vault policy write custom-mobile-apps-read-policy
-        vault/policy/custom-mobile-apps-read-policy.hcl
+        vault/policies/custom-mobile-apps-read-policy.hcl
       args:
         chdir: /tmp/vault-example-code
 
