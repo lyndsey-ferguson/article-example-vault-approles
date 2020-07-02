@@ -194,10 +194,10 @@
         docker-compose exec -T vault
         vault write auth/approle/role/custom-mobile-apps-signer
         token_policies="custom-mobile-apps-read-policy"
-        secret_id_ttl=10m
+        secret_id_ttl=55m
         token_num_uses=1
-        token_ttl=20m
-        token_max_ttl=30m
+        token_ttl=60m
+        token_max_ttl=90m
       args:
         chdir: /tmp/vault-example-code
         
@@ -212,4 +212,17 @@
     - debug:
         var: get_role_id_output
 
-    # brew install libsodium
+    - name: build the trusted entity docker image
+      docker_image:
+        build:
+          path: ./update_custom_mobile_apps_secret_id
+          args:
+            VAULT_TOKEN: "{{ root_token }}"
+            VAULT_ADDR: "http://localhost:8200"
+        name: trusted-entity
+        source: build
+    
+    - name: run the trusted entity
+      docker_container:
+        name: trusted-entity
+        image: trusted-entity
