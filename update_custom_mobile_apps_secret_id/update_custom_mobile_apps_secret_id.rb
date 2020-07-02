@@ -13,6 +13,7 @@ def create_box(public_key)
   }
 end
 
+# instruction from: https://developer.github.com/v3/actions/secrets/#get-a-repository-public-key
 github_token = File.read('update-public-repos-token.txt')
 
 while true do

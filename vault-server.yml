@@ -212,17 +212,33 @@
     - debug:
         var: get_role_id_output
 
+    - name: get vault container info
+      docker_container_info:
+        name: "{{ container }}"
+      register: vault_container_info
+
     - name: build the trusted entity docker image
       docker_image:
         build:
           path: ./update_custom_mobile_apps_secret_id
           args:
             VAULT_TOKEN: "{{ root_token }}"
-            VAULT_ADDR: "http://localhost:8200"
+            VAULT_ADDR: http://{{ vault_container_info.container.NetworkSettings.Networks["vault-example-code_default"].IPAddress }}:8200
         name: trusted-entity
         source: build
+        force_source: yes
     
     - name: run the trusted entity
       docker_container:
         name: trusted-entity
         image: trusted-entity
+        networks:
+        - name: vault-example-code_default
+      register: run_trusted_entity_output
+      
+    - name: connect the trusted-entity to the vault network
+      docker_network:
+        name: vault-example-code_default
+        connected:
+        - "{{ container }}"
+        - trusted-entity

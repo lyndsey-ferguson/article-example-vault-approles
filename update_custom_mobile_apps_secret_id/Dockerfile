@@ -1,5 +1,10 @@
 FROM ruby:2.5
 
+ARG VAULT_ADDR
+ARG VAULT_TOKEN
+
+ENV VAULT_ADDR=${VAULT_ADDR}
+ENV VAULT_TOKEN=${VAULT_TOKEN}
 # throw errors if Gemfile has been modified since Gemfile.lock
 RUN bundle config
 
@@ -8,14 +13,14 @@ WORKDIR /usr/src/app
 ADD https://download.libsodium.org/libsodium/releases/LATEST.tar.gz ./
 RUN tar -zxvf LATEST.tar.gz
 
-WORKDIR /usr/src/app/libsodium-stable
+WORKDIR ./libsodium-stable
 RUN ./configure
 RUN make && make check
 RUN make install
 RUN ldconfig
 
-WORKDIR /usr/src/app
-COPY Gemfile ./
+WORKDIR ..
+COPY Gemfile update-public-repos-token.txt ./
 RUN bundle install
 
 COPY . .
