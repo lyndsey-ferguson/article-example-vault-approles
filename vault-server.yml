@@ -21,12 +21,15 @@
         recreate: always
       register: example_vault_server_output
     
+    - debug:
+        var: example_vault_server_output
     - set_fact:
         container: "{{ example_vault_server_output.services.vault.keys() | list | first }}"
 
     - debug:
         var: container
 
+      
     - name: check if vault is initialized
       command: docker-compose exec -T vault vault status
       args:
@@ -212,6 +215,9 @@
     - debug:
         var: get_role_id_output
 
+    - name: update value of the GitHub Role Id secret
+      command: ./update_custom_mobile_apps_secret_id/update_github_secret_value.rb VAULT_CODESIGNING_ROLE_ID {{ get_role_id_output }}
+    
     - name: get vault container info
       docker_container_info:
         name: "{{ container }}"
@@ -223,7 +229,7 @@
           path: ./update_custom_mobile_apps_secret_id
           args:
             VAULT_TOKEN: "{{ root_token }}"
-            VAULT_ADDR: http://{{ vault_container_info.container.NetworkSettings.Networks["vault-example-code_default"].IPAddress }}:8200
+            VAULT_ADDR: http://{{ vault_container_info.container.NetworkSettings.Networks["vault-net"].IPAddress }}:8200
         name: trusted-entity
         source: build
         force_source: yes
@@ -233,12 +239,12 @@
         name: trusted-entity
         image: trusted-entity
         networks:
-        - name: vault-example-code_default
+        - name: vault-net
       register: run_trusted_entity_output
       
     - name: connect the trusted-entity to the vault network
       docker_network:
-        name: vault-example-code_default
+        name: vault-net
         connected:
         - "{{ container }}"
         - trusted-entity
