@@ -43,11 +43,11 @@
         var: vault_init_check_output
         
     - name: initialize vault
-      command: docker-compose exec -T vault vault init
+      command: docker-compose exec -T vault vault operator init
       args:
         chdir: /tmp/vault-example-code
       register: init_vault_output
-      when: '"* server is not yet initialized" in vault_init_check_output.stderr_lines'
+      when: vault_init_check_output.stdout | regex_search('Initialized\s+false')
       
     - debug:
         var: init_vault_output
@@ -73,8 +73,13 @@
       args:
         chdir: /tmp/vault-example-code
 
-    - name: enable versioned secrets
-      command: docker-compose exec -T vault vault kv enable-versioning secret
+    - name: enable the v2 secrets engine
+      command: docker-compose exec -T vault vault secrets enable -path=secret kv-v2
+      args:
+        chdir: /tmp/vault-example-code
+
+    - name: enable versioned secrets of old format
+      command: docker-compose exec -T vault vault kv enable-versioning secret/
       args:
         chdir: /tmp/vault-example-code
 
@@ -132,6 +137,24 @@
         COMPANY_NAME: lyndsey
         PATH: '/usr/local/bin:{{ ansible_env.PATH }}'
     
+    - name: read lyndsey keychain info
+      command: >
+        docker-compose exec -T vault
+        vault kv get -format=json secret/custom-mobile-apps/keychains/lyndsey
+      register: lyndsey_keychain_info
+      args:
+        chdir: /tmp/vault-example-code
+
+    - debug:
+        var: lyndsey_keychain_info.stdout | from_json | json_query('data.data')
+
+    - name: write puppy keychain info
+      shell: |
+        docker-compose exec -T vault bash -c "echo \"{{ lyndsey_keychain_info.stdout | from_json | json_query('data.data') }}\" | sed \"s/'/\\\"/g\" > puppy.json"
+        docker-compose exec -T vault vault kv put secret/custom-mobile-apps/keychains/puppy @puppy.json
+      args:
+        chdir: /tmp/vault-example-code
+
     - name: create read only policy
       command: >
         docker-compose exec -T vault
@@ -196,10 +219,9 @@
       command: >
         docker-compose exec -T vault
         vault write auth/approle/role/custom-mobile-apps-signer
-        policies="custom-mobile-apps-read-policy"
+        token_policies="custom-mobile-apps-read-policy"
         token_no_default_policy=false
         secret_id_ttl=55m
-        token_num_uses=1
         token_ttl=60m
         token_max_ttl=90m
       args:
