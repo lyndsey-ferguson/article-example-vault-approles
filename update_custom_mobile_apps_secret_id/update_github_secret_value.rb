@@ -6,6 +6,9 @@ require "base64"
 require 'octokit'
 require 'optparse'
 
+# Replace this with your own GitHub Repo
+GITHUB_REPO = 'lyndsey-ferguson/article-example-customize-existing-mobile-app'
+
 def create_box(public_key)
   b64_key = RbNaCl::PublicKey.new(Base64.decode64(public_key[:key]))
   {
@@ -17,7 +20,7 @@ end
 def update_secret_value(secret_key, secret_value)
   github_token = File.read(File.join(__dir__, 'update-public-repos-token.txt'))
   github_client = Octokit::Client.new(:access_token => github_token)
-  repo = github_client.repository('lyndsey-ferguson/article-example-customize-existing-mobile-app')
+  repo = github_client.repository(GITHUB_REPO)
   puts "working with repo: #{repo.url}"
   box = create_box(github_client.get("#{repo.url}/actions/secrets/public-key"))
   encrypted = box[:box].encrypt(secret_value)

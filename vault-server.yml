@@ -103,10 +103,10 @@
         chdir: /tmp/vault-example-code
 
     - name: enable userpass auth backend
-      command: docker-compose exec -T vault vault auth enable userpass 
+      command: docker-compose exec -T vault vault auth enable userpass
       args:
         chdir: /tmp/vault-example-code
-
+  
     - name: create a user 
       command: >
         docker-compose exec -T vault
